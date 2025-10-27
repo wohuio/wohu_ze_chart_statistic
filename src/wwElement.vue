@@ -74,11 +74,11 @@
           <h3>Arbeitszeit</h3>
           <div class="hours-display">
             <div class="hours-actual">
-              <span class="hours-value">{{ stats.total_hours.toFixed(2) }}</span>
-              <span class="hours-label">Stunden</span>
+              <span class="hours-value">{{ stats.total_minutes }}</span>
+              <span class="hours-label">Minuten</span>
             </div>
             <div class="hours-expected">
-              <span class="hours-label">Soll: {{ stats.expected_hours }}h</span>
+              <span class="hours-label">Soll: {{ stats.expected_minutes }} min</span>
             </div>
           </div>
           <div class="hours-bar">
@@ -88,19 +88,7 @@
             ></div>
           </div>
           <div class="hours-diff" :class="diffClass">
-            {{ stats.difference_hours > 0 ? '+' : '' }}{{ stats.difference_hours.toFixed(2) }}h
-          </div>
-        </div>
-
-        <!-- Entry Count Card -->
-        <div class="card count-card">
-          <h3>Einträge</h3>
-          <div class="count-display">
-            <span class="count-value">{{ stats.entry_count }}</span>
-            <span class="count-label">Stempelungen</span>
-          </div>
-          <div class="count-average">
-            ⌀ {{ stats.average_hours_per_entry.toFixed(2) }}h pro Eintrag
+            {{ stats.difference_minutes > 0 ? '+' : '' }}{{ stats.difference_minutes }} min
           </div>
         </div>
 
@@ -110,15 +98,15 @@
           <div class="minutes-display">
             <div class="minutes-row">
               <span class="minutes-label">Gearbeitet:</span>
-              <span class="minutes-value">{{ stats.total_minutes }} min</span>
+              <span class="minutes-value">{{ formatHoursMinutes(stats.total_minutes) }}h</span>
             </div>
             <div class="minutes-row">
               <span class="minutes-label">Soll:</span>
-              <span class="minutes-value">{{ stats.expected_minutes }} min</span>
+              <span class="minutes-value">{{ formatHoursMinutes(stats.expected_minutes) }}h</span>
             </div>
             <div class="minutes-row diff" :class="diffClass">
               <span class="minutes-label">Differenz:</span>
-              <span class="minutes-value">{{ stats.difference_minutes }} min</span>
+              <span class="minutes-value">{{ formatHoursMinutes(stats.difference_minutes) }}h</span>
             </div>
           </div>
         </div>
@@ -153,7 +141,7 @@ export default {
     },
     diffClass() {
       if (!this.stats) return '';
-      return this.stats.difference_hours >= 0 ? 'positive' : 'negative';
+      return this.stats.difference_minutes >= 0 ? 'positive' : 'negative';
     },
   },
   watch: {
@@ -209,7 +197,15 @@ export default {
       return new Date(parseInt(timestamp)).toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
+        year: 'numeric',
       });
+    },
+    formatHoursMinutes(minutes) {
+      if (!minutes && minutes !== 0) return '0:00';
+      const hours = Math.floor(Math.abs(minutes) / 60);
+      const mins = Math.abs(minutes) % 60;
+      const sign = minutes < 0 ? '-' : '';
+      return `${sign}${hours}:${mins.toString().padStart(2, '0')}`;
     },
   },
 };
