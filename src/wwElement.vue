@@ -15,7 +15,7 @@
     <div v-else-if="stats" class="dashboard">
       <!-- Header -->
       <div class="header">
-        <h2>{{ stats.period_label }}</h2>
+        <h2>{{ formatHeaderDate(stats.period_start) }}</h2>
         <p class="date-range">
           {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
         </p>
@@ -148,6 +148,18 @@ export default {
     'content.userId': 'loadData',
     'content.period': 'loadData',
     'content.referenceDate': 'loadData',
+    'content.autoRefresh': {
+      handler(newVal) {
+        if (newVal) {
+          this.startAutoRefresh();
+        } else {
+          if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+          }
+        }
+      },
+    },
   },
   mounted() {
     this.loadData();
@@ -166,13 +178,14 @@ export default {
       this.error = null;
 
       try {
-        const params = new URLSearchParams({
-          user_id: this.content.userId || 1,
-          period: this.content.period || 'week',
-          reference_date: this.content.referenceDate || Date.now(),
-        });
+        const params = new URLSearchParams();
+        params.append('user_id', String(this.content.userId || 1));
+        params.append('period', String(this.content.period || 'week'));
+        params.append('reference_date', String(this.content.referenceDate || Date.now()));
 
-        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params}`;
+        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
+
+        console.log('Fetching statistics from:', url);
 
         const response = await fetch(url);
 
@@ -199,6 +212,14 @@ export default {
         month: '2-digit',
         year: 'numeric',
       });
+    },
+    formatHeaderDate(timestamp) {
+      if (!timestamp) return '';
+      return new Date(parseInt(timestamp)).toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).replace(/\./g, '-');
     },
     formatHoursMinutes(minutes) {
       if (!minutes && minutes !== 0) return '0:00';
