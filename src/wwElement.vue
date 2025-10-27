@@ -15,10 +15,18 @@
     <div v-else-if="stats" class="dashboard">
       <!-- Header -->
       <div class="header">
-        <h2>{{ formatHeaderDate(stats.period_start) }}</h2>
-        <p class="date-range">
-          {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
-        </p>
+        <div class="header-content">
+          <div class="header-text">
+            <h2>{{ formatHeaderDate(stats.period_start) }}</h2>
+            <p class="date-range">
+              {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
+            </p>
+          </div>
+          <button class="refresh-button" @click="loadData" :disabled="loading">
+            <span class="refresh-icon" :class="{ spinning: loading }">↻</span>
+            Aktualisieren
+          </button>
+        </div>
       </div>
 
       <!-- Main Stats Grid -->
@@ -125,7 +133,6 @@ export default {
       stats: null,
       loading: false,
       error: null,
-      timer: null,
     };
   },
   computed: {
@@ -148,29 +155,9 @@ export default {
     'content.userId': 'loadData',
     'content.period': 'loadData',
     'content.referenceDate': 'loadData',
-    'content.autoRefresh': {
-      handler(newVal) {
-        if (newVal) {
-          this.startAutoRefresh();
-        } else {
-          if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
-          }
-        }
-      },
-    },
   },
   mounted() {
     this.loadData();
-    if (this.content.autoRefresh) {
-      this.startAutoRefresh();
-    }
-  },
-  beforeDestroy() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
   },
   methods: {
     async loadData() {
@@ -199,11 +186,6 @@ export default {
       } finally {
         this.loading = false;
       }
-    },
-    startAutoRefresh() {
-      this.timer = setInterval(() => {
-        this.loadData();
-      }, 30000);
     },
     formatDate(timestamp) {
       if (!timestamp) return '';
@@ -273,8 +255,19 @@ export default {
 }
 
 .header {
-  text-align: center;
   margin-bottom: 30px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-text {
+  flex: 1;
+  text-align: center;
 }
 
 .header h2 {
@@ -288,6 +281,47 @@ export default {
   margin: 8px 0 0;
   font-size: 14px;
   color: #666;
+}
+
+.refresh-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.refresh-button:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.refresh-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.refresh-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.refresh-icon {
+  font-size: 18px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.refresh-icon.spinning {
+  animation: spin 1s linear infinite;
 }
 
 .stats-grid {
@@ -493,6 +527,16 @@ export default {
 
   .statistics-dashboard {
     padding: 12px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .refresh-button {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

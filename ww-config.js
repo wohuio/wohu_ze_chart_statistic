@@ -43,14 +43,5 @@ export default {
       bindable: true,
       section: "settings",
     },
-    autoRefresh: {
-      label: {
-        en: "Auto Refresh (every 30s)",
-        de: "Auto-Aktualisierung (alle 30s)",
-      },
-      type: "OnOff",
-      defaultValue: false,
-      section: "settings",
-    },
   },
 };
