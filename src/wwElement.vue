@@ -157,6 +157,31 @@
           </div>
         </div>
       </div>
+
+      <!-- Monthly Breakdown (only for month view) -->
+      <div v-if="localPeriod === 'month' && stats.entries" class="daily-breakdown">
+        <h3>Monatliche Übersicht</h3>
+        <div class="daily-bars">
+          <div
+            v-for="(month, index) in monthlyYearBreakdown"
+            :key="index"
+            class="day-bar-container"
+          >
+            <div class="day-label">{{ month.label }}</div>
+            <div class="day-bar-track">
+              <div
+                class="day-bar-fill"
+                :style="{ width: month.percentage + '%' }"
+                :class="{ 'has-data': month.minutes > 0 }"
+              ></div>
+            </div>
+            <div class="day-stats">
+              <span class="day-minutes">{{ month.minutes }} min</span>
+              <span class="day-percentage">{{ month.percentage.toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -225,6 +250,42 @@ export default {
         const percentage = Math.min((hours / dailyHoursTarget) * 100, 100);
         return {
           label: day,
+          minutes: minutes,
+          hours: hours.toFixed(1),
+          percentage: percentage,
+        };
+      });
+    },
+    monthlyYearBreakdown() {
+      if (!this.stats || !this.stats.entries || this.localPeriod !== 'month') {
+        return [];
+      }
+
+      const monthlyHoursTarget = this.stats.expected_hours; // Expected hours per month
+      const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+      const monthData = {};
+
+      // Initialize all months with 0
+      monthNames.forEach((month, index) => {
+        monthData[index] = { minutes: 0, label: month };
+      });
+
+      // Sum up minutes per month
+      this.stats.entries.forEach(entry => {
+        if (entry.clock_in) {
+          const date = new Date(parseInt(entry.clock_in));
+          const monthIndex = date.getMonth(); // 0-11
+          monthData[monthIndex].minutes += entry.duration_minutes || 0;
+        }
+      });
+
+      // Calculate percentages
+      return monthNames.map((month, index) => {
+        const minutes = monthData[index].minutes;
+        const hours = minutes / 60;
+        const percentage = Math.min((hours / monthlyHoursTarget) * 100, 100);
+        return {
+          label: month,
           minutes: minutes,
           hours: hours.toFixed(1),
           percentage: percentage,
