@@ -17,14 +17,14 @@
       <div class="header">
         <div class="header-content">
           <div class="header-text">
-            <h2>{{ formatHeaderDate(stats.period_start) }}</h2>
+            <h2>{{ stats.period_label || 'Statistik' }}</h2>
             <p class="date-range">
               {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
             </p>
           </div>
           <div class="header-actions">
-            <!-- Period Selector -->
-            <div class="period-selector">
+            <!-- Period Selector (only if enabled) -->
+            <div v-if="content.showPeriodSelector" class="period-selector">
               <button
                 v-for="p in periods"
                 :key="p.value"
@@ -365,11 +365,15 @@ export default {
         const params = new URLSearchParams();
         params.append('user_id', String(this.content.userId || 1));
         params.append('period', String(this.localPeriod)); // Use local period
-        params.append('reference_date', String(Date.now())); // Always use current date
+
+        // Use referenceDate from content if set, otherwise use current date
+        const refDate = this.content.referenceDate || Date.now();
+        params.append('reference_date', String(refDate));
 
         const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
 
         console.log('Fetching statistics from:', url);
+        console.log('Reference date:', new Date(refDate).toLocaleString('de-DE'));
 
         const response = await fetch(url);
 

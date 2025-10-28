@@ -39,7 +39,17 @@ export default {
         de: "Referenzdatum (timestamp)",
       },
       type: "Number",
-      defaultValue: Date.now(),
+      defaultValue: null,
+      bindable: true,
+      section: "settings",
+    },
+    showPeriodSelector: {
+      label: {
+        en: "Show Period Selector",
+        de: "Period-Auswahl anzeigen",
+      },
+      type: "OnOff",
+      defaultValue: true,
       bindable: true,
       section: "settings",
     },
