@@ -45,7 +45,7 @@ npm run build        # Build component for production
 
 ## API Integration
 
-**Endpoint:** `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/statistics`
+**Endpoint:** `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics`
 
 **Query Parameters:**
 - `user_id` (integer)

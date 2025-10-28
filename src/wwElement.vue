@@ -367,7 +367,7 @@ export default {
         params.append('period', String(this.localPeriod)); // Use local period
         params.append('reference_date', String(Date.now())); // Always use current date
 
-        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/statistics?${params.toString()}`;
+        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
 
         console.log('Fetching statistics from:', url);
 
