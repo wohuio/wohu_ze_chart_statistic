@@ -54,4 +54,12 @@ export default {
       section: "settings",
     },
   },
+  triggerEvents: [
+    {
+      name: "period-change",
+      label: { en: "On period change", de: "Bei Period-Änderung" },
+      event: { period: "" },
+      default: true,
+    },
+  ],
 };

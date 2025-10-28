@@ -17,19 +17,19 @@
       <div class="header">
         <div class="header-content">
           <div class="header-text">
-            <h2>{{ stats.period_label || 'Statistik' }}</h2>
+            <h2>{{ stats?.period_label || 'Statistik' }}</h2>
             <p class="date-range">
-              {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
+              {{ formatDate(stats?.period_start) }} - {{ formatDate(stats?.period_end) }}
             </p>
           </div>
           <div class="header-actions">
             <!-- Period Selector (only if enabled) -->
-            <div v-if="content.showPeriodSelector" class="period-selector">
+            <div v-if="content?.showPeriodSelector" class="period-selector">
               <button
                 v-for="p in periods"
                 :key="p.value"
                 @click="selectPeriod(p.value)"
-                :class="['period-button', { active: localPeriod === p.value }]"
+                :class="['period-button', { active: selectedPeriod === p.value }]"
               >
                 {{ p.label }}
               </button>
@@ -76,7 +76,7 @@
                 text-anchor="middle"
                 class="progress-text-large"
               >
-                {{ stats.completion_percentage.toFixed(1) }}%
+                {{ (stats?.completion_percentage || 0).toFixed(1) }}%
               </text>
               <text
                 x="90"
@@ -84,7 +84,7 @@
                 text-anchor="middle"
                 class="progress-text-small"
               >
-                von {{ stats.expected_hours }}h
+                von {{ stats?.expected_hours || 0 }}h
               </text>
             </svg>
           </div>
@@ -95,11 +95,11 @@
           <h3>Arbeitszeit</h3>
           <div class="hours-display">
             <div class="hours-actual">
-              <span class="hours-value">{{ stats.total_minutes }}</span>
+              <span class="hours-value">{{ stats?.total_minutes || 0 }}</span>
               <span class="hours-label">Minuten</span>
             </div>
             <div class="hours-expected">
-              <span class="hours-label">Soll: {{ stats.expected_minutes }} min</span>
+              <span class="hours-label">Soll: {{ stats?.expected_minutes || 0 }} min</span>
             </div>
           </div>
           <div class="hours-bar">
@@ -109,7 +109,7 @@
             ></div>
           </div>
           <div class="hours-diff" :class="diffClass">
-            {{ stats.difference_minutes > 0 ? '+' : '' }}{{ stats.difference_minutes }} min
+            {{ (stats?.difference_minutes || 0) > 0 ? '+' : '' }}{{ stats?.difference_minutes || 0 }} min
           </div>
         </div>
 
@@ -117,13 +117,13 @@
         <div class="card count-card">
           <h3>Einträge</h3>
           <div class="count-display">
-            <span class="count-value">{{ stats.entry_count || 0 }}</span>
+            <span class="count-value">{{ stats?.entry_count || 0 }}</span>
             <span class="count-label">Zeiteinträge</span>
           </div>
           <div class="count-details">
             <div class="count-row">
               <span class="count-detail-label">⌀ pro Eintrag:</span>
-              <span class="count-detail-value">{{ formatHoursMinutes((stats.average_hours_per_entry || 0) * 60) }}h</span>
+              <span class="count-detail-value">{{ formatHoursMinutes((stats?.average_hours_per_entry || 0) * 60) }}h</span>
             </div>
             <div class="count-row">
               <span class="count-detail-label">⌀ pro Tag:</span>
@@ -138,19 +138,19 @@
           <div class="minutes-display">
             <div class="minutes-row">
               <span class="minutes-label">Gearbeitet:</span>
-              <span class="minutes-value">{{ formatHoursMinutes(stats.total_minutes) }}h</span>
+              <span class="minutes-value">{{ formatHoursMinutes(stats?.total_minutes) }}h</span>
             </div>
             <div class="minutes-row">
               <span class="minutes-label">Soll:</span>
-              <span class="minutes-value">{{ formatHoursMinutes(stats.expected_minutes) }}h</span>
+              <span class="minutes-value">{{ formatHoursMinutes(stats?.expected_minutes) }}h</span>
             </div>
             <div class="minutes-row diff" :class="diffClass">
               <span class="minutes-label">Differenz:</span>
               <span class="minutes-value">
                 <span class="trend-indicator" :class="diffClass">
-                  {{ stats.difference_minutes >= 0 ? '↑' : '↓' }}
+                  {{ (stats?.difference_minutes || 0) >= 0 ? '↑' : '↓' }}
                 </span>
-                {{ formatHoursMinutes(stats.difference_minutes) }}h
+                {{ formatHoursMinutes(stats?.difference_minutes) }}h
               </span>
             </div>
           </div>
@@ -158,7 +158,7 @@
       </div>
 
       <!-- Daily Breakdown (only for week view) -->
-      <div v-if="localPeriod === 'week' && stats.entries" class="daily-breakdown">
+      <div v-if="selectedPeriod === 'week' && stats?.entries" class="daily-breakdown">
         <h3>Tägliche Übersicht</h3>
         <div class="daily-bars">
           <div
@@ -186,7 +186,7 @@
       </div>
 
       <!-- Monthly Breakdown (only for month view) -->
-      <div v-if="localPeriod === 'month' && stats.entries" class="daily-breakdown">
+      <div v-if="selectedPeriod === 'month' && stats?.entries" class="daily-breakdown">
         <h3>Monatliche Übersicht</h3>
         <div class="daily-bars">
           <div
@@ -217,58 +217,87 @@
 </template>
 
 <script>
+import { ref, computed, watch, onMounted } from 'vue';
+
 export default {
   props: {
+    uid: { type: String, required: true },
     content: { type: Object, required: true },
   },
-  data() {
-    return {
-      stats: null,
-      loading: false,
-      error: null,
-      localPeriod: 'week', // Local period state
-      periods: [
-        { value: 'day', label: 'Tag' },
-        { value: 'week', label: 'Woche' },
-        { value: 'month', label: 'Monat' },
-      ],
+  emits: ['trigger-event'],
+  setup(props, { emit }) {
+    // State
+    const stats = ref(null);
+    const loading = ref(false);
+    const error = ref(null);
+    const periods = [
+      { value: 'day', label: 'Tag' },
+      { value: 'week', label: 'Woche' },
+      { value: 'month', label: 'Monat' },
+    ];
+
+    // Internal variable for selected period
+    const { value: selectedPeriod, setValue: setSelectedPeriod } = wwLib.wwVariable.useComponentVariable({
+      uid: props.uid,
+      name: 'selectedPeriod',
+      type: 'string',
+      defaultValue: 'week',
+    });
+
+    // Initialize from content.period if available
+    watch(() => props.content?.period, (newPeriod) => {
+      if (newPeriod && newPeriod !== selectedPeriod.value) {
+        setSelectedPeriod(newPeriod);
+      }
+    }, { immediate: true });
+
+    // Computed properties
+    const circumference = computed(() => 2 * Math.PI * 70);
+
+    const progressOffset = computed(() => {
+      const percentage = Math.min(stats.value?.completion_percentage || 0, 100);
+      return circumference.value - (percentage / 100) * circumference.value;
+    });
+
+    const barWidth = computed(() => {
+      return Math.min((stats.value?.completion_percentage || 0), 100);
+    });
+
+    const diffClass = computed(() => {
+      if (!stats.value) return '';
+      return stats.value.difference_minutes >= 0 ? 'positive' : 'negative';
+    });
+
+    const formatHoursMinutes = (minutes) => {
+      if (!minutes && minutes !== 0) return '0:00';
+      if (isNaN(minutes)) return '0:00';
+      const hours = Math.floor(Math.abs(minutes) / 60);
+      const mins = Math.abs(minutes) % 60;
+      const sign = minutes < 0 ? '-' : '';
+      return `${sign}${hours}:${mins.toString().padStart(2, '0')}`;
     };
-  },
-  computed: {
-    circumference() {
-      return 2 * Math.PI * 70; // radius = 70
-    },
-    progressOffset() {
-      const percentage = Math.min(this.stats?.completion_percentage || 0, 100);
-      return this.circumference - (percentage / 100) * this.circumference;
-    },
-    barWidth() {
-      return Math.min((this.stats?.completion_percentage || 0), 100);
-    },
-    diffClass() {
-      if (!this.stats) return '';
-      return this.stats.difference_minutes >= 0 ? 'positive' : 'negative';
-    },
-    averagePerDay() {
-      if (!this.stats) return '0:00';
-      const periodDays = this.localPeriod === 'day' ? 1 :
-                         this.localPeriod === 'week' ? 7 : 30;
-      const avgMinutes = (this.stats.total_minutes || 0) / periodDays;
-      return this.formatHoursMinutes(avgMinutes);
-    },
-    progressColor() {
-      if (!this.stats) return '#4CAF50';
-      const percentage = this.stats.completion_percentage;
+
+    const averagePerDay = computed(() => {
+      if (!stats.value) return '0:00';
+      const periodDays = selectedPeriod.value === 'day' ? 1 :
+                         selectedPeriod.value === 'week' ? 7 : 30;
+      const avgMinutes = (stats.value.total_minutes || 0) / periodDays;
+      return formatHoursMinutes(avgMinutes);
+    });
+
+    const progressColor = computed(() => {
+      if (!stats.value) return '#4CAF50';
+      const percentage = stats.value.completion_percentage;
       if (percentage < 50) return '#f44336'; // Red
       if (percentage < 80) return '#FF9800'; // Orange
       return '#4CAF50'; // Green
-    },
-    weeklyDayBreakdown() {
-      if (!this.stats || !this.stats.entries || this.localPeriod !== 'week') {
+    });
+    const weeklyDayBreakdown = computed(() => {
+      if (!stats.value || !stats.value.entries || selectedPeriod.value !== 'week') {
         return [];
       }
 
-      const dailyHoursTarget = this.stats.expected_hours / 5; // Mon-Fri
+      const dailyHoursTarget = stats.value.expected_hours / 5; // Mon-Fri
       const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
       const dayData = {};
 
@@ -278,7 +307,7 @@ export default {
       });
 
       // Sum up minutes per day
-      this.stats.entries.forEach(entry => {
+      stats.value.entries.forEach(entry => {
         if (entry.clock_in) {
           const date = new Date(parseInt(entry.clock_in));
           const dayIndex = (date.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
@@ -299,13 +328,14 @@ export default {
           percentage: percentage,
         };
       });
-    },
-    monthlyYearBreakdown() {
-      if (!this.stats || !this.stats.entries || this.localPeriod !== 'month') {
+    });
+
+    const monthlyYearBreakdown = computed(() => {
+      if (!stats.value || !stats.value.entries || selectedPeriod.value !== 'month') {
         return [];
       }
 
-      const monthlyHoursTarget = this.stats.expected_hours; // Expected hours per month
+      const monthlyHoursTarget = stats.value.expected_hours; // Expected hours per month
       const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
       const monthData = {};
 
@@ -315,7 +345,7 @@ export default {
       });
 
       // Sum up minutes per month
-      this.stats.entries.forEach(entry => {
+      stats.value.entries.forEach(entry => {
         if (entry.clock_in) {
           const date = new Date(parseInt(entry.clock_in));
           const monthIndex = date.getMonth(); // 0-11
@@ -335,39 +365,35 @@ export default {
           percentage: percentage,
         };
       });
-    },
-  },
-  watch: {
-    'content.userId': 'loadData',
-    'content.period': {
-      handler(newVal) {
-        if (newVal) {
-          this.localPeriod = newVal;
-          this.loadData();
-        }
-      },
-      immediate: true,
-    },
-  },
-  mounted() {
-    // Initialize local period from content if available
-    if (this.content.period) {
-      this.localPeriod = this.content.period;
-    }
-    this.loadData();
-  },
-  methods: {
-    async loadData() {
-      this.loading = true;
-      this.error = null;
+    });
+
+    // Watchers
+    watch(() => props.content?.userId, () => {
+      loadData();
+    });
+
+    // Methods
+    const selectPeriod = (period) => {
+      setSelectedPeriod(period);
+      // Emit trigger event for period change
+      emit('trigger-event', {
+        name: 'period-change',
+        event: { period: period }
+      });
+      loadData();
+    };
+
+    const loadData = async () => {
+      loading.value = true;
+      error.value = null;
 
       try {
         const params = new URLSearchParams();
-        params.append('user_id', String(this.content.userId || 1));
-        params.append('period', String(this.localPeriod)); // Use local period
+        params.append('user_id', String(props.content?.userId || 1));
+        params.append('period', String(selectedPeriod.value)); // Use selected period
 
         // Use referenceDate from content if set, otherwise use current date
-        const refDate = this.content.referenceDate || Date.now();
+        const refDate = props.content?.referenceDate || Date.now();
         params.append('reference_date', String(refDate));
 
         const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
@@ -381,43 +407,60 @@ export default {
           throw new Error('API Error: ' + response.status);
         }
 
-        this.stats = await response.json();
-        console.log('Statistics loaded:', this.stats);
+        stats.value = await response.json();
+        console.log('Statistics loaded:', stats.value);
       } catch (err) {
         console.error('Error loading statistics:', err);
-        this.error = err.message;
+        error.value = err.message;
       } finally {
-        this.loading = false;
+        loading.value = false;
       }
-    },
-    selectPeriod(period) {
-      this.localPeriod = period;
-      this.loadData();
-    },
-    formatDate(timestamp) {
+    };
+
+    const formatDate = (timestamp) => {
       if (!timestamp) return '';
       return new Date(parseInt(timestamp)).toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
       });
-    },
-    formatHeaderDate(timestamp) {
+    };
+
+    const formatHeaderDate = (timestamp) => {
       if (!timestamp) return '';
       return new Date(parseInt(timestamp)).toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
       }).replace(/\./g, '-');
-    },
-    formatHoursMinutes(minutes) {
-      if (!minutes && minutes !== 0) return '0:00';
-      if (isNaN(minutes)) return '0:00';
-      const hours = Math.floor(Math.abs(minutes) / 60);
-      const mins = Math.abs(minutes) % 60;
-      const sign = minutes < 0 ? '-' : '';
-      return `${sign}${hours}:${mins.toString().padStart(2, '0')}`;
-    },
+    };
+
+    // Lifecycle
+    onMounted(() => {
+      loadData();
+    });
+
+    // Return for template
+    return {
+      stats,
+      loading,
+      error,
+      periods,
+      selectedPeriod,
+      circumference,
+      progressOffset,
+      barWidth,
+      diffClass,
+      averagePerDay,
+      progressColor,
+      weeklyDayBreakdown,
+      monthlyYearBreakdown,
+      selectPeriod,
+      loadData,
+      formatDate,
+      formatHeaderDate,
+      formatHoursMinutes,
+    };
   },
 };
 </script>
