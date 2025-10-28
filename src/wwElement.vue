@@ -123,7 +123,7 @@
           <div class="count-details">
             <div class="count-row">
               <span class="count-detail-label">⌀ pro Eintrag:</span>
-              <span class="count-detail-value">{{ formatHoursMinutes(stats.average_hours_per_entry * 60) }}h</span>
+              <span class="count-detail-value">{{ formatHoursMinutes((stats.average_hours_per_entry || 0) * 60) }}h</span>
             </div>
             <div class="count-row">
               <span class="count-detail-label">⌀ pro Tag:</span>
@@ -250,10 +250,10 @@ export default {
       return this.stats.difference_minutes >= 0 ? 'positive' : 'negative';
     },
     averagePerDay() {
-      if (!this.stats || !this.stats.entries) return '0:00';
+      if (!this.stats) return '0:00';
       const periodDays = this.localPeriod === 'day' ? 1 :
                          this.localPeriod === 'week' ? 7 : 30;
-      const avgMinutes = this.stats.total_minutes / periodDays;
+      const avgMinutes = (this.stats.total_minutes || 0) / periodDays;
       return this.formatHoursMinutes(avgMinutes);
     },
     progressColor() {
@@ -378,7 +378,9 @@ export default {
         }
 
         this.stats = await response.json();
+        console.log('Statistics loaded:', this.stats);
       } catch (err) {
+        console.error('Error loading statistics:', err);
         this.error = err.message;
       } finally {
         this.loading = false;
@@ -406,6 +408,7 @@ export default {
     },
     formatHoursMinutes(minutes) {
       if (!minutes && minutes !== 0) return '0:00';
+      if (isNaN(minutes)) return '0:00';
       const hours = Math.floor(Math.abs(minutes) / 60);
       const mins = Math.abs(minutes) % 60;
       const sign = minutes < 0 ? '-' : '';
