@@ -4,70 +4,104 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WeWeb component that displays time tracking statistics in a beautiful dashboard layout with cards and visualizations.
-
-## Key Features
-
-- **SVG Progress Ring** - Pure SVG/CSS circle chart (no external libraries)
-- **Card-based Dashboard** - 4 stat cards in responsive grid
-- **Real-time Updates** - Fetches from Xano API with optional auto-refresh
-- **Responsive Design** - Grid layout adapts to screen size
+WeWeb component displaying time tracking statistics with a dashboard layout. Built as a single-file Vue component with no external chart libraries.
 
 ## Development Commands
 
 ```bash
 npm install          # Install dependencies
-npm run serve        # Run local dev server
-npm run build        # Build for production
+npm run serve        # Run local dev server with WeWeb CLI
+npm run build        # Build component for production
 ```
 
-## File Structure
+## Architecture
 
-- **src/wwElement.vue** - Main component with dashboard and API logic
-- **ww-config.js** - WeWeb configuration with 4 bindable properties
+### Component Structure
+
+**Main Component:** `src/wwElement.vue` (single-file Vue component)
+- Template: Dashboard with header, 3 stat cards, and conditional breakdowns
+- Script: Data fetching, period management, and formatting logic
+- Style: Scoped CSS with responsive design
+
+**Configuration:** `ww-config.js` (WeWeb editor settings)
+- Defines 3 bindable properties: userId, period, referenceDate
+- Property defaults and editor labels (EN/DE)
+
+### Key Design Decisions
+
+1. **Pure SVG Progress Ring** - No Chart.js or external libraries
+   - Uses `stroke-dasharray` and `stroke-dashoffset` for animation
+   - Located in progress-card section (lines 48-91)
+
+2. **Local Period State** - Component maintains its own period state
+   - `localPeriod` in data() overrides `content.period` prop
+   - Allows period selector buttons to work without parent re-binding
+   - Always uses `Date.now()` for reference_date (ignores prop)
+
+3. **Conditional Breakdowns** - Different views for week vs month
+   - Week view (lines 137-159): Shows 7 daily bars (Mo-So)
+   - Month view (lines 162-184): Shows 12 monthly bars (Jan-Dez)
+   - Computed properties: `weeklyDayBreakdown`, `monthlyYearBreakdown`
 
 ## API Integration
 
-**Endpoint:** `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics`
+**Endpoint:** `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/statistics`
 
 **Query Parameters:**
-- `user_id` (integer) - Required
-- `period` (string) - "day", "week", or "month"
-- `reference_date` (timestamp) - Unix timestamp in milliseconds
+- `user_id` (integer)
+- `period` (string): "day", "week", or "month"
+- `reference_date` (timestamp in milliseconds)
 
-**Response Structure:**
+**Response Shape:**
 ```javascript
 {
-  period_label: "KW 44",
-  total_hours: 0.73,
-  expected_hours: 40,
-  difference_hours: -39.27,
-  completion_percentage: 1.8,
-  entry_count: 22,
-  average_hours_per_entry: 0.03,
-  total_minutes: 44,
-  expected_minutes: 2400,
-  difference_minutes: -2356,
-  // ... more fields
+  period_label: string,          // e.g. "KW 44"
+  period_start: number,          // Unix timestamp
+  period_end: number,            // Unix timestamp
+  total_hours: number,
+  expected_hours: number,
+  difference_hours: number,
+  completion_percentage: number,
+  total_minutes: number,
+  expected_minutes: number,
+  difference_minutes: number,
+  entries: [                     // Array of individual time entries
+    {
+      clock_in: number,          // Unix timestamp
+      duration_minutes: number
+    }
+  ]
 }
 ```
 
-## Component Structure
+## Component Behavior
 
-### Cards
-1. **Progress Ring Card** - SVG circle with completion percentage
-2. **Hours Card** - Main hours display with progress bar
-3. **Entry Count Card** - Number of entries and averages
-4. **Minutes Card** - Detailed minute breakdown
+### Data Flow
+1. Component mounts → initializes `localPeriod` from prop
+2. Calls `loadData()` → fetches from API with current date
+3. Period selector buttons update `localPeriod` → triggers new fetch
+4. Stats displayed in 3 cards + conditional breakdown
 
-### Visualizations
-- **Progress Ring**: SVG circle with `stroke-dasharray` animation
-- **Progress Bar**: CSS width transition for smooth animation
-- **Color Coding**: Green for positive, red for negative differences
+### Watchers
+- `content.userId` → reload data
+- `content.period` → update localPeriod and reload (immediate: true)
 
-## Design Decisions
+### Header Behavior
+- Shows formatted period_start date (e.g. "28-10-2025")
+- Date range below: "28.10.2025 - 03.11.2025"
+- Manual refresh button (auto-refresh removed as of recent commits)
 
-- No external chart libraries (Chart.js, etc.) - keeps bundle small
-- Pure SVG for progress ring - more control over styling
-- Card-based layout - easy to understand and customize
-- CSS Grid for responsive layout - no media query complexity
+## Styling Notes
+
+- CSS Grid for responsive card layout: `repeat(auto-fit, minmax(280px, 1fr))`
+- Card hover effects: translateY(-4px) with shadow transition
+- Progress animations: 1s ease transitions for ring and bars
+- Mobile responsive: switches to single column at 768px
+- German labels throughout UI ("Fortschritt", "Arbeitszeit", etc.)
+
+## Recent Changes (from git history)
+
+- Added monthly year breakdown for month view
+- Added period selector with weekly/daily breakdown
+- Replaced auto-refresh with manual refresh button
+- Fixed header date format and auto-refresh functionality

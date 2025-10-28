@@ -20,7 +20,7 @@ npm run serve --port=3000
 
 ## API
 
-Fetches from: `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics`
+Fetches from: `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/statistics`
 
 ### Parameters
 - `user_id` (number): User ID to fetch statistics for

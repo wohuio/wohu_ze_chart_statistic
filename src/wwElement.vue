@@ -64,7 +64,7 @@
                 cy="90"
                 r="70"
                 fill="none"
-                stroke="#4CAF50"
+                :stroke="progressColor"
                 stroke-width="12"
                 stroke-linecap="round"
                 :stroke-dasharray="circumference"
@@ -113,6 +113,25 @@
           </div>
         </div>
 
+        <!-- Entry Count Card -->
+        <div class="card count-card">
+          <h3>Einträge</h3>
+          <div class="count-display">
+            <span class="count-value">{{ stats.entry_count || 0 }}</span>
+            <span class="count-label">Zeiteinträge</span>
+          </div>
+          <div class="count-details">
+            <div class="count-row">
+              <span class="count-detail-label">⌀ pro Eintrag:</span>
+              <span class="count-detail-value">{{ formatHoursMinutes(stats.average_hours_per_entry * 60) }}h</span>
+            </div>
+            <div class="count-row">
+              <span class="count-detail-label">⌀ pro Tag:</span>
+              <span class="count-detail-value">{{ averagePerDay }}h</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Minutes Card -->
         <div class="card minutes-card">
           <h3>Minuten</h3>
@@ -127,7 +146,12 @@
             </div>
             <div class="minutes-row diff" :class="diffClass">
               <span class="minutes-label">Differenz:</span>
-              <span class="minutes-value">{{ formatHoursMinutes(stats.difference_minutes) }}h</span>
+              <span class="minutes-value">
+                <span class="trend-indicator" :class="diffClass">
+                  {{ stats.difference_minutes >= 0 ? '↑' : '↓' }}
+                </span>
+                {{ formatHoursMinutes(stats.difference_minutes) }}h
+              </span>
             </div>
           </div>
         </div>
@@ -143,7 +167,10 @@
             class="day-bar-container"
           >
             <div class="day-label">{{ day.label }}</div>
-            <div class="day-bar-track">
+            <div
+              class="day-bar-track"
+              :title="`${day.label}: ${day.hours}h (${day.minutes} min) - ${day.percentage.toFixed(1)}% des Tagesziels`"
+            >
               <div
                 class="day-bar-fill"
                 :style="{ width: day.percentage + '%' }"
@@ -168,7 +195,10 @@
             class="day-bar-container"
           >
             <div class="day-label">{{ month.label }}</div>
-            <div class="day-bar-track">
+            <div
+              class="day-bar-track"
+              :title="`${month.label}: ${month.hours}h (${month.minutes} min) - ${month.percentage.toFixed(1)}% des Monatsziels`"
+            >
               <div
                 class="day-bar-fill"
                 :style="{ width: month.percentage + '%' }"
@@ -218,6 +248,20 @@ export default {
     diffClass() {
       if (!this.stats) return '';
       return this.stats.difference_minutes >= 0 ? 'positive' : 'negative';
+    },
+    averagePerDay() {
+      if (!this.stats || !this.stats.entries) return '0:00';
+      const periodDays = this.localPeriod === 'day' ? 1 :
+                         this.localPeriod === 'week' ? 7 : 30;
+      const avgMinutes = this.stats.total_minutes / periodDays;
+      return this.formatHoursMinutes(avgMinutes);
+    },
+    progressColor() {
+      if (!this.stats) return '#4CAF50';
+      const percentage = this.stats.completion_percentage;
+      if (percentage < 50) return '#f44336'; // Red
+      if (percentage < 80) return '#FF9800'; // Orange
+      return '#4CAF50'; // Green
     },
     weeklyDayBreakdown() {
       if (!this.stats || !this.stats.entries || this.localPeriod !== 'week') {
@@ -323,7 +367,7 @@ export default {
         params.append('period', String(this.localPeriod)); // Use local period
         params.append('reference_date', String(Date.now())); // Always use current date
 
-        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
+        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/statistics?${params.toString()}`;
 
         console.log('Fetching statistics from:', url);
 
@@ -528,15 +572,35 @@ export default {
 
 .card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #4CAF50, #2196F3, #FF9800);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card h3 {
@@ -618,9 +682,28 @@ export default {
 
 .hours-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+  background: linear-gradient(90deg, #4CAF50, #66BB6A, #81C784);
   border-radius: 6px;
-  transition: width 1s ease;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.hours-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .hours-diff {
@@ -641,31 +724,60 @@ export default {
 /* Count Card */
 .count-display {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .count-value {
-  display: block;
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 700;
   color: #2196F3;
   line-height: 1;
+  text-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
 }
 
 .count-label {
-  display: block;
   font-size: 14px;
   color: #666;
   margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.count-average {
-  text-align: center;
-  padding: 12px;
-  background: #f5f5f5;
+.count-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.count-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
   border-radius: 8px;
-  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.count-row:hover {
+  background: #e9ecef;
+}
+
+.count-detail-label {
+  font-size: 13px;
   color: #666;
+  font-weight: 500;
+}
+
+.count-detail-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2196F3;
 }
 
 /* Minutes Card */
@@ -713,6 +825,29 @@ export default {
 
 .minutes-row.diff .minutes-value {
   font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trend-indicator {
+  font-size: 24px;
+  font-weight: 700;
+  display: inline-block;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.trend-indicator.positive {
+  color: #4CAF50;
+}
+
+.trend-indicator.negative {
+  color: #f44336;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
 }
 
 /* Daily Breakdown */
@@ -757,6 +892,14 @@ export default {
   border-radius: 16px;
   overflow: hidden;
   position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.day-bar-track:hover {
+  background: #d0d0d0;
+  transform: scaleY(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .day-bar-fill {
