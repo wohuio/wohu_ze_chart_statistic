@@ -22,10 +22,23 @@
               {{ formatDate(stats.period_start) }} - {{ formatDate(stats.period_end) }}
             </p>
           </div>
-          <button class="refresh-button" @click="loadData" :disabled="loading">
-            <span class="refresh-icon" :class="{ spinning: loading }">↻</span>
-            Aktualisieren
-          </button>
+          <div class="header-actions">
+            <!-- Period Selector -->
+            <div class="period-selector">
+              <button
+                v-for="p in periods"
+                :key="p.value"
+                @click="selectPeriod(p.value)"
+                :class="['period-button', { active: localPeriod === p.value }]"
+              >
+                {{ p.label }}
+              </button>
+            </div>
+            <button class="refresh-button" @click="loadData" :disabled="loading">
+              <span class="refresh-icon" :class="{ spinning: loading }">↻</span>
+              Aktualisieren
+            </button>
+          </div>
         </div>
       </div>
 
@@ -119,6 +132,31 @@
           </div>
         </div>
       </div>
+
+      <!-- Daily Breakdown (only for week view) -->
+      <div v-if="localPeriod === 'week' && stats.entries" class="daily-breakdown">
+        <h3>Tägliche Übersicht</h3>
+        <div class="daily-bars">
+          <div
+            v-for="(day, index) in weeklyDayBreakdown"
+            :key="index"
+            class="day-bar-container"
+          >
+            <div class="day-label">{{ day.label }}</div>
+            <div class="day-bar-track">
+              <div
+                class="day-bar-fill"
+                :style="{ width: day.percentage + '%' }"
+                :class="{ 'has-data': day.minutes > 0 }"
+              ></div>
+            </div>
+            <div class="day-stats">
+              <span class="day-minutes">{{ day.minutes }} min</span>
+              <span class="day-percentage">{{ day.percentage.toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -133,6 +171,12 @@ export default {
       stats: null,
       loading: false,
       error: null,
+      localPeriod: 'week', // Local period state
+      periods: [
+        { value: 'day', label: 'Tag' },
+        { value: 'week', label: 'Woche' },
+        { value: 'month', label: 'Monat' },
+      ],
     };
   },
   computed: {
@@ -150,13 +194,61 @@ export default {
       if (!this.stats) return '';
       return this.stats.difference_minutes >= 0 ? 'positive' : 'negative';
     },
+    weeklyDayBreakdown() {
+      if (!this.stats || !this.stats.entries || this.localPeriod !== 'week') {
+        return [];
+      }
+
+      const dailyHoursTarget = this.stats.expected_hours / 5; // Mon-Fri
+      const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+      const dayData = {};
+
+      // Initialize all days with 0
+      weekDays.forEach(day => {
+        dayData[day] = { minutes: 0, label: day };
+      });
+
+      // Sum up minutes per day
+      this.stats.entries.forEach(entry => {
+        if (entry.clock_in) {
+          const date = new Date(parseInt(entry.clock_in));
+          const dayIndex = (date.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
+          const dayLabel = weekDays[dayIndex];
+          dayData[dayLabel].minutes += entry.duration_minutes || 0;
+        }
+      });
+
+      // Calculate percentages
+      return weekDays.map(day => {
+        const minutes = dayData[day].minutes;
+        const hours = minutes / 60;
+        const percentage = Math.min((hours / dailyHoursTarget) * 100, 100);
+        return {
+          label: day,
+          minutes: minutes,
+          hours: hours.toFixed(1),
+          percentage: percentage,
+        };
+      });
+    },
   },
   watch: {
     'content.userId': 'loadData',
-    'content.period': 'loadData',
-    'content.referenceDate': 'loadData',
+    'content.period': {
+      handler(newVal) {
+        if (newVal) {
+          this.localPeriod = newVal;
+          this.loadData();
+        }
+      },
+      immediate: true,
+    },
   },
   mounted() {
+    // Initialize local period from content if available
+    if (this.content.period) {
+      this.localPeriod = this.content.period;
+    }
     this.loadData();
   },
   methods: {
@@ -167,8 +259,8 @@ export default {
       try {
         const params = new URLSearchParams();
         params.append('user_id', String(this.content.userId || 1));
-        params.append('period', String(this.content.period || 'week'));
-        params.append('reference_date', String(this.content.referenceDate || Date.now()));
+        params.append('period', String(this.localPeriod)); // Use local period
+        params.append('reference_date', String(Date.now())); // Always use current date
 
         const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
 
@@ -186,6 +278,10 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    selectPeriod(period) {
+      this.localPeriod = period;
+      this.loadData();
     },
     formatDate(timestamp) {
       if (!timestamp) return '';
@@ -281,6 +377,45 @@ export default {
   margin: 8px 0 0;
   font-size: 14px;
   color: #666;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.period-selector {
+  display: flex;
+  gap: 8px;
+  background: white;
+  padding: 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.period-button {
+  padding: 8px 16px;
+  background: transparent;
+  color: #666;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.period-button:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.period-button.active {
+  background: #4CAF50;
+  color: white;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
 }
 
 .refresh-button {
@@ -519,6 +654,83 @@ export default {
   font-size: 20px;
 }
 
+/* Daily Breakdown */
+.daily-breakdown {
+  margin-top: 30px;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.daily-breakdown h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.daily-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-bar-container {
+  display: grid;
+  grid-template-columns: 40px 1fr 140px;
+  align-items: center;
+  gap: 12px;
+}
+
+.day-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-align: center;
+}
+
+.day-bar-track {
+  height: 32px;
+  background: #e0e0e0;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.day-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e0e0e0, #e0e0e0);
+  border-radius: 16px;
+  transition: width 0.8s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+.day-bar-fill.has-data {
+  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+}
+
+.day-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.day-minutes {
+  color: #666;
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.day-percentage {
+  color: #333;
+  font-weight: 700;
+  min-width: 45px;
+  text-align: right;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid {
@@ -534,9 +746,51 @@ export default {
     text-align: center;
   }
 
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .period-selector {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .period-button {
+    flex: 1;
+    padding: 10px 12px;
+  }
+
   .refresh-button {
     width: 100%;
     justify-content: center;
+  }
+
+  .day-bar-container {
+    grid-template-columns: 35px 1fr 120px;
+    gap: 8px;
+  }
+
+  .day-label {
+    font-size: 12px;
+  }
+
+  .day-bar-track {
+    height: 28px;
+  }
+
+  .day-stats {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .day-minutes {
+    min-width: 60px;
+  }
+
+  .day-percentage {
+    min-width: 40px;
   }
 }
 </style>
