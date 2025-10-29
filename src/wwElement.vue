@@ -159,7 +159,7 @@
               ></div>
             </div>
             <div class="day-stats">
-              <span class="day-minutes">{{ day.minutes }} min</span>
+              <span class="day-minutes">{{ formatHoursMinutes(day.minutes) }}</span>
               <span class="day-percentage">{{ day.percentage.toFixed(0) }}%</span>
             </div>
           </div>
@@ -187,7 +187,7 @@
               ></div>
             </div>
             <div class="day-stats">
-              <span class="day-minutes">{{ month.minutes }} min</span>
+              <span class="day-minutes">{{ formatHoursMinutes(month.minutes) }}</span>
               <span class="day-percentage">{{ month.percentage.toFixed(0) }}%</span>
             </div>
           </div>
