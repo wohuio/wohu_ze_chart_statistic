@@ -392,11 +392,11 @@ export default {
         params.append('user_id', String(props.content?.userId || 1));
         params.append('period', String(selectedPeriod.value)); // Use selected period
 
-        // Use referenceDate from content if set, otherwise use current date
-        const refDate = props.content?.referenceDate || Date.now();
+        // Always use current date as reference_date
+        const refDate = Date.now();
         params.append('reference_date', String(refDate));
 
-        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:6iYtDb6K/statistics?${params.toString()}`;
+        const url = `https://xv05-su7k-rvc8.f2.xano.io/api:if8X12tw/work_statistics?${params.toString()}`;
 
         console.log('Fetching statistics from:', url);
         console.log('Reference date:', new Date(refDate).toLocaleString('de-DE'));
