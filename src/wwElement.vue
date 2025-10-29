@@ -95,11 +95,11 @@
           <h3>Arbeitszeit</h3>
           <div class="hours-display">
             <div class="hours-actual">
-              <span class="hours-value">{{ stats?.total_minutes || 0 }}</span>
-              <span class="hours-label">Minuten</span>
+              <span class="hours-value">{{ formatHoursMinutes(stats?.total_minutes || 0) }}</span>
+              <span class="hours-label">Stunden</span>
             </div>
             <div class="hours-expected">
-              <span class="hours-label">Soll: {{ stats?.expected_minutes || 0 }} min</span>
+              <span class="hours-label">Soll: {{ formatHoursMinutes(stats?.expected_minutes || 0) }}</span>
             </div>
           </div>
           <div class="hours-bar">
@@ -109,26 +109,7 @@
             ></div>
           </div>
           <div class="hours-diff" :class="diffClass">
-            {{ (stats?.difference_minutes || 0) > 0 ? '+' : '' }}{{ stats?.difference_minutes || 0 }} min
-          </div>
-        </div>
-
-        <!-- Entry Count Card -->
-        <div class="card count-card">
-          <h3>Einträge</h3>
-          <div class="count-display">
-            <span class="count-value">{{ stats?.entry_count || 0 }}</span>
-            <span class="count-label">Zeiteinträge</span>
-          </div>
-          <div class="count-details">
-            <div class="count-row">
-              <span class="count-detail-label">⌀ pro Eintrag:</span>
-              <span class="count-detail-value">{{ formatHoursMinutes((stats?.average_hours_per_entry || 0) * 60) }}h</span>
-            </div>
-            <div class="count-row">
-              <span class="count-detail-label">⌀ pro Tag:</span>
-              <span class="count-detail-value">{{ averagePerDay }}h</span>
-            </div>
+            {{ (stats?.difference_minutes || 0) > 0 ? '+' : '' }}{{ formatHoursMinutes(Math.abs(stats?.difference_minutes || 0)) }}
           </div>
         </div>
 
